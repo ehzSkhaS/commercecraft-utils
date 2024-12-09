@@ -15,6 +15,8 @@ class TranslationService:
     Raises:
         ValueError: If required environment variables are missing or invalid.
     """
+    # TODO: Only OPENAI_API_KEY should be an environment variable. Others must be just configurable at runtime.
+    # However, I'd advise to also allow that OPENAI_API_KEY to be passed as an argument to the constructor
 
     def __init__(self, dotenv_path: str = None):
         if not load_dotenv(dotenv_path=dotenv_path if dotenv_path else '.env'):
@@ -128,6 +130,8 @@ class TranslationService:
                     messages=[
                         {
                             'role': 'system',
+                            # TODO: There is content in the user prompt that can be included in the system message
+                            # everything that is fixed and doesn't change can be included in the system message
                             'content': 'You are a professional translator.',
                         },
                         {
@@ -192,5 +196,5 @@ class TranslationService:
                 print(f'Failed to translate batch {i//self.__batch_size + 1}: {str(e)}')
                 # Return partial translations up to this point
                 return all_translations
-
+        # TODO: You should deal with hte fact that if any translation fails, all the translations are lost
         return all_translations

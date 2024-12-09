@@ -18,7 +18,7 @@ class TranslationEngine:
     Raises:
         ValueError: If required environment variables are missing.
     """
-
+    # TODO: Allow parameters to be passed as arguments to the constructor
     def __init__(self, dotenv_path: str = None, source_lang: str = 'en-US'):
         if not load_dotenv(dotenv_path=dotenv_path if dotenv_path else '.env'):
             raise ValueError('No .env file found')
@@ -181,6 +181,8 @@ class TranslationEngine:
                         # Create translation dictionary without using Postprocessor
                         elem_translations = dict(zip(all_elements, translated_elements))
                         
+                        # TODO: Make sure that translations don't introduce new separators!
+
                         # Apply translations to original set values
                         df_translated[target_col] = df[source_col].apply(
                             lambda x: self.__set_separator.join(
