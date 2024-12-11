@@ -1,5 +1,5 @@
 import re
-from src.models import ContentPatterns, Placeholder
+from src.commercecraft_utils.models import ContentPatterns, Placeholder
 
 def test_content_patterns_creation():
     """Test creating ContentPatterns instance."""

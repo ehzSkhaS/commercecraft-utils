@@ -53,39 +53,54 @@ class TranslationService:
         except ValueError:
             raise ValueError('BATCH_SIZE must be a valid integer')
 
-    def _create_translation_prompt(
-        self, texts: list[str], source_lang: str, target_lang: str
-    ) -> str:
+    def _create_system_prompt(self, source_lang: str, target_lang: str) -> str:
         """
-        Create a translation prompt for the OpenAI API.
+        Create the system prompt for the OpenAI API.
 
         Args:
-            texts (list[str]): List of texts to translate.
             source_lang (str): Source language code.
             target_lang (str): Target language code.
 
         Returns:
-            str: Formatted translation prompt.
+            str: Formatted system prompt.
         """
-        prompt = f"""You are a professional translator.
+        return f"""You are a professional translator from {source_lang} to {target_lang}.
                     
-                    Translate the following texts from {source_lang} to {target_lang}.
+                There are not contradictions on the following instructions.
+                You will follow them exactly as written.
                     
-                    There are not contradictions on the following instructions.
-                    You will follow them exactly as written.
-                        
-                    IMPORTANT INSTRUCTIONS:
-                    - Return ONLY the translations, one per line
-                    - Maintain the exact meaning and context of each text
-                    - Keep the same tone and formality level
-                    - Preserve any technical terms or proper nouns
-                    - Preserve any special characters or formatting
-                    - Do not include explanations or additional text
-                    - Do not include any additional characters or symbols or even spaces
+                IMPORTANT INSTRUCTIONS:
+                - Return translations line by line, maintaining EXACTLY the same number of lines as the input
+                - Each input line must correspond to exactly one output line
+                - NEVER split a line into multiple lines
+                - NEVER combine multiple lines into one
+                - Maintain all formatting, numbers, and special characters exactly as they appear
+                - Translate ONLY the text portions while preserving all other elements
+                - Do not add or remove any information
+                
+                - Return ONLY the translations, one per line
+                - Maintain the exact meaning and context of each text
+                - Keep the same tone and formality level
+                - Preserve any technical terms or proper nouns
+                - Numbers should be kept in their original format
+                - Maintain any special formatting (e.g., HTML tags) from the original
+                - Do not add explanations or notes
+                - Do not include the original text
+                - Do not add quotation marks unless they exist in the original
+                - Do not translate anything between {{{{}}}}
+                """
 
-                    Here are the texts to translate: \n{chr(10).join(f"{text}" for text in texts)}"""
+    def _create_user_prompt(self, texts: list[str]) -> str:
+        """
+        Create the user prompt containing only the texts to translate.
 
-        return prompt
+        Args:
+            texts (list[str]): List of texts to translate.
+
+        Returns:
+            str: Formatted user prompt with texts to translate.
+        """
+        return '\n'.join(texts)
 
     def _process_response(self, response: str) -> list[str]:
         """
@@ -128,38 +143,33 @@ class TranslationService:
                     messages=[
                         {
                             'role': 'system',
-                            'content': 'You are a professional translator.',
+                            'content': self._create_system_prompt(source_lang, target_lang),
                         },
                         {
                             'role': 'user',
-                            'content': self._create_translation_prompt(
-                                texts, source_lang, target_lang
-                            ),
+                            'content': self._create_user_prompt(texts),
                         },
                     ],
                     max_tokens=self.__max_tokens,
                     temperature=self.__temperature,
                 )
 
-                translations = self._process_response(
-                    response.choices[0].message.content
-                )
+                translations = self._process_response(response.choices[0].message.content)
+
                 if len(translations) != len(texts):
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                        continue
                     raise ValueError(
                         f'Expected {len(texts)} translations, got {len(translations)}'
                     )
                 return translations
 
             except Exception as e:
-                print(
-                    f'Translation error (attempt {attempt + 1}/{max_retries}): {str(e)}'
-                )
                 if attempt < max_retries - 1:
-                    # Exp Backoff
-                    await asyncio.sleep(2**attempt)
-                else:
-                    # Re-raise the last error
-                    raise
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                raise Exception(f'Translation failed after {max_retries} attempts: {str(e)}')
 
     async def translate_texts(
         self, texts: list[str], source_lang: str, target_lang: str

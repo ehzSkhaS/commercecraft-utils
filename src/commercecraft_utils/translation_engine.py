@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from preprocessor import TextPreprocessor
-from translation_service import TranslationService
-from utils import get_base_columns, get_language_columns
+from .preprocessor import TextPreprocessor
+from .translation_service import TranslationService
+from .utils import get_base_columns, get_language_columns
 
 
 class TranslationEngine:

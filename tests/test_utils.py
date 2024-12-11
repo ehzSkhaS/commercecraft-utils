@@ -1,5 +1,5 @@
 import pandas as pd
-from src.utils import get_base_columns, get_language_columns
+from src.commercecraft_utils.utils import get_base_columns, get_language_columns
 
 def test_get_base_columns_with_language_suffix():
     """Test extracting base column names from columns with language suffixes."""

@@ -1,8 +1,7 @@
 """Enhanced preprocessor using Pydantic models for content protection."""
 import re
 import json
-from typing import List
-from models import patterns, Placeholder
+from .models import patterns, Placeholder
 
 class ContentProtector:
     """
@@ -10,7 +9,7 @@ class ContentProtector:
     """
 
     def __init__(self):
-        self.placeholders: List[Placeholder] = []
+        self.placeholders: list[Placeholder] = []
         self.counter = 0
 
     def create_placeholder(self, original: str, category: str) -> str:

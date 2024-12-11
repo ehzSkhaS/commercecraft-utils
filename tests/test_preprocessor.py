@@ -1,4 +1,4 @@
-from src.preprocessor import TextPreprocessor
+from src.commercecraft_utils.preprocessor import TextPreprocessor
 
 def test_html_protection():
     """Test protecting HTML content."""

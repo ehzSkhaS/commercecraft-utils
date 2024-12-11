@@ -2,7 +2,7 @@ import os
 import pytest
 import pandas as pd
 from unittest.mock import patch
-from src.translation_engine import TranslationEngine
+from src.commercecraft_utils.translation_engine import TranslationEngine
 
 @pytest.fixture
 def translation_engine():

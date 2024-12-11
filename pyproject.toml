@@ -1,6 +1,6 @@
 [project]
 name = "commercecraft-utils"
-version = "0.1.0"
+version = "0.1.2"
 description = "A Python utility for translating CSV files between different languages using OpenAI's API"
 authors = [
     { name = "SkhaS", email = "ehz.skhas@gmail.com" }
@@ -31,6 +31,9 @@ Issues = "https://github.com/ehzSkhaS/commercecraft-utils/issues"
 [build-system]
 requires = ["setuptools>=42.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages]
+find = { where = ["."], exclude = ["tests"] }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
