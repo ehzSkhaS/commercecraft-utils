@@ -39,3 +39,4 @@ Thumbs.db
 # Project
 data/
 examples/
+src/main.py
