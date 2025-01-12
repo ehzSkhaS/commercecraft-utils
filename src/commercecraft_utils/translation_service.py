@@ -1,58 +1,56 @@
-import os
 import asyncio
-from typing import Optional
-from dotenv import load_dotenv
+import logging
 from openai import AsyncOpenAI
-
 
 class TranslationService:
     """
-    Service for handling translations using the OpenAI API.
-    Supports batch processing and implements retry mechanisms.
+    Service for handling translations using OpenAI's API.
 
     Args:
-        dotenv_path (str, optional): Path to the .env file. Defaults to None.
-
-    Raises:
-        ValueError: If required environment variables are missing or invalid.
+        api_key (str): OpenAI API key for translation service
+        model (str, optional): OpenAI model for translation service. Defaults to 'gpt-3.5-turbo'
+        max_tokens (int, optional): Maximum tokens for translation service. Defaults to 2000
+        temperature (float, optional): Temperature for translation service. Defaults to 0.0
+        request_batch_size (int, optional): Number of texts to send in a single API request. Defaults to 50
     """
 
-    def __init__(self, dotenv_path: Optional[str] = None):
-        if not load_dotenv(dotenv_path=dotenv_path if dotenv_path else '.env'):
-            raise ValueError('No .env file found')
-        
-        # Get environment variables
-        if (api_key := os.getenv('OPENAI_API_KEY')) is None:
-            raise ValueError('OPENAI_API_KEY environment variable is required')
-        self.client = AsyncOpenAI(api_key=api_key)
-        
-        if (model := os.getenv('OPENAI_MODEL')) is None:
-            raise ValueError('OPENAI_MODEL environment variable is required')
-        self.__model = model
-        
-        if (max_tokens := os.getenv('MAX_TOKENS')) is None:
-            raise ValueError('MAX_TOKENS environment variable is required')
+    def __init__(
+        self,
+        api_key: str,
+        model: str = 'gpt-3.5-turbo',
+        max_tokens: int = 2000,
+        temperature: float = 0.0,
+        request_batch_size: int = 50,
+    ):
+        """Initialize the TranslationService."""
+        self.__logger = logging.getLogger(__name__)
+        self.__logger.setLevel(logging.INFO)
         
         try:
+            # Validate and set parameters
+            if not api_key:
+                self.__logger.error("API key is required but was not provided")
+                raise ValueError("API key is required")
+
+            self.__api_key = api_key
+            self.__model = model
             self.__max_tokens = int(max_tokens)
-        except ValueError:
-            raise ValueError('MAX_TOKENS must be a valid integer')
-        
-        if (temperature := os.getenv('TEMPERATURE')) is None:
-            raise ValueError('TEMPERATURE environment variable is required')
-        
-        try:
             self.__temperature = float(temperature)
-        except ValueError:
-            raise ValueError('TEMPERATURE must be a valid float')
-        
-        if (batch_size := os.getenv('BATCH_SIZE')) is None:
-            raise ValueError('BATCH_SIZE environment variable is required')
-        
-        try:
-            self.__batch_size = int(batch_size)
-        except ValueError:
-            raise ValueError('BATCH_SIZE must be a valid integer')
+            self.__request_batch_size = int(request_batch_size)
+            
+            # Initialize OpenAI client
+            self.__client = AsyncOpenAI(api_key=self.__api_key)
+            
+            self.__logger.info(
+                "TranslationService initialized with: model=%s, max_tokens=%d, "
+                "temperature=%.2f, request_batch_size=%d",
+                self.__model, self.__max_tokens, self.__temperature, 
+                self.__request_batch_size
+            )
+            
+        except Exception as e:
+            self.__logger.error("Failed to initialize TranslationService: %s", str(e))
+            raise
 
     def _create_system_prompt(self, source_lang: str, target_lang: str) -> str:
         """
@@ -108,7 +106,13 @@ class TranslationService:
         self, texts: list[str], source_lang: str, target_lang: str, max_retries: int = 3
     ) -> list[str]:
         if not texts:
+            self.__logger.warning("Empty text list provided for translation")
             return []
+
+        self.__logger.info(
+            "Starting batch translation of %d texts from %s to %s",
+            len(texts), source_lang, target_lang
+        )
 
         all_translations = []
         for text in texts:
@@ -116,7 +120,7 @@ class TranslationService:
             numbered_lines = self._preprocess_text(text)
             
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.__client.chat.completions.create(
                     model=self.__model,
                     messages=[
                         {
@@ -135,9 +139,12 @@ class TranslationService:
                 translated_lines = self._process_response(response.choices[0].message.content)
                 
                 if len(translated_lines) != len(numbered_lines):
-                    print(f"Line count mismatch. Original: {len(numbered_lines)}, Translated: {len(translated_lines)}")
-                    print(f"Original numbered lines: {numbered_lines}")
-                    print(f"Translated lines: {translated_lines}")
+                    self.__logger.error(
+                        "Line count mismatch in translation. Original: %d, Translated: %d",
+                        len(numbered_lines), len(translated_lines)
+                    )
+                    self.__logger.debug("Original numbered lines: %s", numbered_lines)
+                    self.__logger.debug("Translated lines: %s", translated_lines)
                     raise ValueError(f'Expected {len(numbered_lines)} lines in translation, got {len(translated_lines)}')
                 
                 # Join the translated lines back together
@@ -145,30 +152,55 @@ class TranslationService:
                 all_translations.append(final_translation)
 
             except Exception as e:
-                print(f"Translation failed: {str(e)}")
-                print(f"Original text: {text}")
+                self.__logger.error(
+                    "Translation failed for text: %s. Error: %s",
+                    text[:100] + "..." if len(text) > 100 else text,
+                    str(e)
+                )
                 raise
 
+        self.__logger.info(
+            "Successfully translated batch of %d texts from %s to %s",
+            len(texts), source_lang, target_lang
+        )
+        
         return all_translations
 
     async def translate_texts(
         self, texts: list[str], source_lang: str, target_lang: str
     ) -> list[str]:
         """
-        Translate multiple texts with batching and rate limiting.
+        Translate a list of texts from source language to target language.
 
         Args:
-            texts (list[str]): List of texts to translate.
-            source_lang (str): Source language code.
-            target_lang (str): Target language code.
+            texts (list[str]): List of texts to translate
+            source_lang (str): Source language code
+            target_lang (str): Target language code
 
         Returns:
             list[str]: List of translated texts.
         """
-        all_translations = []
+        if not texts:
+            self.__logger.warning("Empty text list provided for translation")
+            return []
 
-        for i in range(0, len(texts), self.__batch_size):
-            batch = texts[i : i + self.__batch_size]
+        self.__logger.info(
+            "Starting translation of %d texts from %s to %s in batches of %d",
+            len(texts), source_lang, target_lang, self.__request_batch_size
+        )
+
+        all_translations = []
+        batch_count = (len(texts) + self.__request_batch_size - 1) // self.__request_batch_size
+
+        for i in range(0, len(texts), self.__request_batch_size):
+            batch = texts[i : i + self.__request_batch_size]
+            current_batch = (i // self.__request_batch_size) + 1
+            
+            self.__logger.info(
+                "Processing batch %d/%d (%d texts)",
+                current_batch, batch_count, len(batch)
+            )
+
             try:
                 translations = await self.translate_batch(
                     batch,
@@ -177,12 +209,21 @@ class TranslationService:
                 )
                 all_translations.extend(translations)
 
-                if i + self.__batch_size < len(texts):
-                    # Rate limiting between batches
+                if i + self.__request_batch_size < len(texts):
+                    self.__logger.debug("Applying rate limiting between batches")
                     await asyncio.sleep(1)
+
             except Exception as e:
-                print(f'Failed to translate batch {i//self.__batch_size + 1}: {str(e)} \n {all_translations}')
+                self.__logger.error(
+                    "Failed to translate batch %d/%d: %s",
+                    current_batch, batch_count, str(e)
+                )
                 # Return partial translations up to this point
                 return all_translations
+
+        self.__logger.info(
+            "Completed translation of all %d texts from %s to %s",
+            len(texts), source_lang, target_lang
+        )
 
         return all_translations

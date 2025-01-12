@@ -40,3 +40,4 @@ Thumbs.db
 data/
 examples/
 src/main.py
+src/csv_cleaner.py
