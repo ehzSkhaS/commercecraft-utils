@@ -115,11 +115,16 @@ class TranslationService:
         )
 
         all_translations = []
-        for text in texts:
+        for idx, text in enumerate(texts, 1):
             # Split and number each line
             numbered_lines = self._preprocess_text(text)
             
             try:
+                self.__logger.info(
+                    "HTTP Request %d/%d: Translating text...",
+                    idx, len(texts)
+                )
+                
                 response = await self.__client.chat.completions.create(
                     model=self.__model,
                     messages=[
@@ -140,8 +145,8 @@ class TranslationService:
                 
                 if len(translated_lines) != len(numbered_lines):
                     self.__logger.error(
-                        "Line count mismatch in translation. Original: %d, Translated: %d",
-                        len(numbered_lines), len(translated_lines)
+                        "Line count mismatch in text %d/%d. Original: %d, Translated: %d",
+                        idx, len(texts), len(numbered_lines), len(translated_lines)
                     )
                     self.__logger.debug("Original numbered lines: %s", numbered_lines)
                     self.__logger.debug("Translated lines: %s", translated_lines)
@@ -153,9 +158,9 @@ class TranslationService:
 
             except Exception as e:
                 self.__logger.error(
-                    "Translation failed for text: %s. Error: %s",
-                    text[:100] + "..." if len(text) > 100 else text,
-                    str(e)
+                    "Translation failed for text %d/%d: %s. Text preview: %s",
+                    idx, len(texts), str(e),
+                    text[:100] + "..." if len(text) > 100 else text
                 )
                 raise
 
