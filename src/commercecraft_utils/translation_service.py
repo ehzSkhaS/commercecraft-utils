@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from openai import AsyncOpenAI
+from .utils import configure_logger
 
 class TranslationService:
     """
@@ -8,7 +8,7 @@ class TranslationService:
 
     Args:
         api_key (str): OpenAI API key for translation service
-        model (str, optional): OpenAI model for translation service. Defaults to 'gpt-3.5-turbo'
+        model (str, optional): OpenAI model for translation service. Defaults to 'gpt-4o-mini'
         max_tokens (int, optional): Maximum tokens for translation service. Defaults to 2000
         temperature (float, optional): Temperature for translation service. Defaults to 0.0
         request_batch_size (int, optional): Number of texts to send in a single API request. Defaults to 50
@@ -17,14 +17,13 @@ class TranslationService:
     def __init__(
         self,
         api_key: str,
-        model: str = 'gpt-3.5-turbo',
+        model: str = 'gpt-4o-mini',
         max_tokens: int = 2000,
         temperature: float = 0.0,
         request_batch_size: int = 50,
     ):
         """Initialize the TranslationService."""
-        self.__logger = logging.getLogger(__name__)
-        self.__logger.setLevel(logging.INFO)
+        self.__logger = configure_logger(__name__)
         
         try:
             # Validate and set parameters

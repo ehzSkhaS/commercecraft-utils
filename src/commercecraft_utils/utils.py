@@ -1,6 +1,36 @@
 import pandas as pd
 import json
+import logging
 from typing import Tuple, Dict
+
+
+def configure_logger(name: str) -> logging.Logger:
+    """
+    Configure a logger with consistent formatting across all environments.
+    
+    Args:
+        name (str): Name for the logger, typically __name__
+        
+    Returns:
+        logging.Logger: Configured logger instance
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    # Thanks to stupid Colab!!!
+    # If running in Colab (root logger has handlers), don't add our own
+    if logging.getLogger().handlers:
+        logger.propagate = True
+        return logger
+        
+    # Only add handler if not in Colab and no handlers exist
+    if not logger.handlers:
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    
+    return logger
 
 
 def get_base_columns(columns: list[str], fls: str = '.') -> set[str]:

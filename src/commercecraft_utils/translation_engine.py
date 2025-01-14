@@ -1,10 +1,9 @@
 import os
 import json
-import logging
 import pandas as pd
 from typing import List, Any
 from .translation_service import TranslationService
-from .utils import get_base_columns, get_language_columns
+from .utils import get_base_columns, get_language_columns, configure_logger
 from .translation_processor import TranslationProcessor
 
 class TranslationEngine:
@@ -19,7 +18,7 @@ class TranslationEngine:
         output_suffix (str, optional): Suffix for output files. Defaults to '_translated'
         language_separator (str, optional): Separator for language codes. Defaults to '-'
         field_language_separator (str, optional): Separator for field language. Defaults to '.'
-        model (str, optional): OpenAI model for translation service. Defaults to 'gpt-3.5-turbo'
+        model (str, optional): OpenAI model for translation service. Defaults to 'gpt-4o-mini'
         max_tokens (int, optional): Maximum tokens for translation service. Defaults to 2000
         temperature (float, optional): Temperature for translation service. Defaults to 0.0
         request_batch_size (int, optional): Number of texts to send in a single API request. Defaults to 50
@@ -33,27 +32,12 @@ class TranslationEngine:
         output_suffix: str = '_translated',
         language_separator: str = '-',
         field_language_separator: str = '.',
-        model: str = 'gpt-3.5-turbo',
+        model: str = 'gpt-4o-mini',
         max_tokens: int = 2000,
         temperature: float = 0.0,
         request_batch_size: int = 50,
     ):
-        """
-        Initialize the TranslationEngine.
-
-        Args:
-            api_key (str, optional): OpenAI API key for translation service
-            source_lang (str, optional): Source language code. Defaults to 'en-US'
-            set_separator (str, optional): Separator for set values. Defaults to ';'
-            output_suffix (str, optional): Suffix for output files. Defaults to '_translated'
-            language_separator (str, optional): Separator for language codes. Defaults to '-'
-            field_language_separator (str, optional): Separator for field language. Defaults to '.'
-            model (str, optional): OpenAI model for translation service. Defaults to 'gpt-3.5-turbo'
-            max_tokens (int, optional): Maximum tokens for translation service. Defaults to 2000
-            temperature (float, optional): Temperature for translation service. Defaults to 0.0
-            request_batch_size (int, optional): Number of texts to send in a single API request. Defaults to 50
-        """
-        self.__logger = logging.getLogger(__name__)
+        self.__logger = configure_logger(__name__)
         
         try:
             # Set parameters
@@ -73,12 +57,6 @@ class TranslationEngine:
             )
             
             self.__processor = TranslationProcessor()
-            
-            # Set up logging
-            logging.basicConfig(
-                level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s'
-            )
             
         except Exception as e:
             self.__logger.error(f"Error initializing TranslationEngine: {str(e)}")
